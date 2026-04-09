@@ -500,7 +500,7 @@ export default function App() {
         <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-200 max-w-md w-full text-center">
           <div className="flex items-center justify-center mx-auto mb-6">
             <img 
-              src="https://drive.google.com/uc?export=view&id=1_pSyAN_t2vDeot5IfGGfH1m9vVWYf76I" 
+              src="https://lh3.googleusercontent.com/d/1_pSyAN_t2vDeot5IfGGfH1m9vVWYf76I" 
               alt="SariaOccupazione Logo" 
               className="h-24 object-contain"
               referrerPolicy="no-referrer"
@@ -552,7 +552,7 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img 
-              src="https://drive.google.com/uc?export=view&id=1_pSyAN_t2vDeot5IfGGfH1m9vVWYf76I" 
+              src="https://lh3.googleusercontent.com/d/1_pSyAN_t2vDeot5IfGGfH1m9vVWYf76I" 
               alt="SariaOccupazione Logo" 
               className="h-10 object-contain"
               referrerPolicy="no-referrer"
