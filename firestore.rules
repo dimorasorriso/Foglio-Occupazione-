@@ -50,6 +50,7 @@ service cloud.firestore {
              data.portal is string && data.portal.size() >= 0 && data.portal.size() < 50 &&
              (!('notes' in data) || (data.notes is string && data.notes.size() <= 2000)) &&
              (!('phone' in data) || (data.phone is string && data.phone.size() <= 50)) &&
+             (!('price' in data) || (data.price is number && data.price >= 0)) &&
              (!('createdAt' in data) || data.createdAt is string);
     }
 

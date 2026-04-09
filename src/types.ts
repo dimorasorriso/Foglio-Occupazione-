@@ -7,4 +7,5 @@ export interface Reservation {
   portal: string;
   notes: string;
   phone?: string;
+  price?: number;
 }

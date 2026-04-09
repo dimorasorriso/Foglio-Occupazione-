@@ -29,6 +29,7 @@ export default function App() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [notification, setNotification] = useState<{message: string, type: 'success'|'error'} | null>(null);
+  const [activeTab, setActiveTab] = useState<'reservations' | 'analytics'>('reservations');
 
   useEffect(() => {
     if (notification) {
@@ -140,7 +141,7 @@ export default function App() {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: name === 'adults' || name === 'children' ? parseInt(value) || 0 : value
+      [name]: name === 'adults' || name === 'children' ? parseInt(value) || 0 : name === 'price' ? parseFloat(value) || 0 : value
     }));
   };
 
@@ -165,6 +166,7 @@ export default function App() {
           portal: formData.portal as string,
           notes: formData.notes as string || '',
           phone: formData.phone as string || '',
+          price: formData.price as number || 0,
           createdAt: new Date().toISOString()
         };
         const reservationRef = doc(db, `users/${user.uid}/reservations`, newId);
@@ -188,7 +190,8 @@ export default function App() {
       children: 0,
       portal: 'Airbnb',
       notes: '',
-      phone: ''
+      phone: '',
+      price: 0
     });
   };
 
@@ -433,7 +436,8 @@ export default function App() {
               children: parseInt(row['BAMBINI < 3'] || row['BAMBINI']) || 0,
               portal: row['PORTALE'] || '',
               notes: row['NOTE'] || '',
-              phone: row['TELEFONO'] || ''
+              phone: row['TELEFONO'] || '',
+              price: parseFloat(row['PREZZO'] || row['IMPORTO'] || row['PRICE']) || 0
             });
           } catch (err) {
             console.error(`Errore durante il parsing della riga ${index + 2}`, row, err);
@@ -509,6 +513,27 @@ export default function App() {
     );
   }
 
+  // Analytics Calculations
+  const totalNights = reservations.reduce((acc, curr) => acc + getNights(curr.checkIn, curr.checkOut), 0);
+  const avgStayDuration = reservations.length > 0 ? (totalNights / reservations.length).toFixed(1) : '0';
+  
+  // Occupancy rate calculation (based on the first and last reservation dates, or current year if empty)
+  let occupancyRate = '0';
+  if (reservations.length > 0) {
+    const dates = reservations.flatMap(r => [new Date(r.checkIn), new Date(r.checkOut)]);
+    const minDate = new Date(Math.min(...dates.map(d => d.getTime())));
+    const maxDate = new Date(Math.max(...dates.map(d => d.getTime())));
+    const totalDaysInRange = Math.max(1, Math.ceil((maxDate.getTime() - minDate.getTime()) / (1000 * 60 * 60 * 24)));
+    occupancyRate = ((totalNights / totalDaysInRange) * 100).toFixed(1);
+  }
+
+  // Revenue per portal
+  const revenueByPortal = reservations.reduce((acc, curr) => {
+    const portal = curr.portal || 'Altro';
+    acc[portal] = (acc[portal] || 0) + (curr.price || 0);
+    return acc;
+  }, {} as Record<string, number>);
+
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 font-sans">
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
@@ -518,6 +543,20 @@ export default function App() {
             <h1 className="text-xl font-semibold tracking-tight">Gestione B&B</h1>
           </div>
           <div className="flex items-center gap-3">
+            <div className="flex bg-gray-100 p-1 rounded-lg mr-4">
+              <button
+                onClick={() => setActiveTab('reservations')}
+                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${activeTab === 'reservations' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+              >
+                Prenotazioni
+              </button>
+              <button
+                onClick={() => setActiveTab('analytics')}
+                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${activeTab === 'analytics' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+              >
+                Analisi
+              </button>
+            </div>
             <button
               onClick={logout}
               className="inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors mr-2"
@@ -540,43 +579,102 @@ export default function App() {
               ref={fileInputRef}
               onChange={handleFileUpload}
             />
-            <button 
-              onClick={() => fileInputRef.current?.click()}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
-            >
-              <Upload className="w-4 h-4" />
-              <span className="hidden sm:inline">Importa Excel/CSV</span>
-            </button>
-            <button 
-              onClick={exportExcel}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
-            >
-              <Download className="w-4 h-4" />
-              <span className="hidden sm:inline">Esporta Excel</span>
-            </button>
-            <button 
-              onClick={() => {
-                if (!showForm || editingId) {
-                  setFormData({ checkIn: '', checkOut: '', adults: 2, children: 0, portal: 'Airbnb', notes: '' });
-                  setEditingId(null);
-                  setShowForm(true);
-                } else {
-                  setShowForm(false);
-                }
-              }}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors shadow-sm"
-            >
-              <Plus className="w-4 h-4" />
-              Nuova
-            </button>
+            {activeTab === 'reservations' && (
+              <>
+                <button 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+                >
+                  <Upload className="w-4 h-4" />
+                  <span className="hidden sm:inline">Importa Excel/CSV</span>
+                </button>
+                <button 
+                  onClick={exportExcel}
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+                >
+                  <Download className="w-4 h-4" />
+                  <span className="hidden sm:inline">Esporta Excel</span>
+                </button>
+                <button 
+                  onClick={() => {
+                    if (!showForm || editingId) {
+                      setFormData({ checkIn: '', checkOut: '', adults: 2, children: 0, portal: 'Airbnb', notes: '', phone: '', price: 0 });
+                      setEditingId(null);
+                      setShowForm(true);
+                    } else {
+                      setShowForm(false);
+                    }
+                  }}
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors shadow-sm"
+                >
+                  <Plus className="w-4 h-4" />
+                  Nuova
+                </button>
+              </>
+            )}
           </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        {activeTab === 'analytics' ? (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-semibold text-gray-900">Analisi e Statistiche</h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h3 className="text-sm font-medium text-gray-500 mb-2">Tasso di Occupazione</h3>
+                <div className="flex items-end gap-2">
+                  <span className="text-4xl font-bold text-gray-900">{occupancyRate}%</span>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">Calcolato sul periodo della prima e ultima prenotazione</p>
+              </div>
+              
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h3 className="text-sm font-medium text-gray-500 mb-2">Durata Media Soggiorno</h3>
+                <div className="flex items-end gap-2">
+                  <span className="text-4xl font-bold text-gray-900">{avgStayDuration}</span>
+                  <span className="text-lg text-gray-600 mb-1">notti</span>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h3 className="text-sm font-medium text-gray-500 mb-2">Ricavi Totali</h3>
+                <div className="flex items-end gap-2">
+                  <span className="text-4xl font-bold text-gray-900">
+                    €{Object.values(revenueByPortal).reduce((a, b) => a + b, 0).toFixed(2)}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-6">Ricavi per Portale</h3>
+              <div className="space-y-4">
+                {Object.entries(revenueByPortal).sort((a, b) => b[1] - a[1]).map(([portal, revenue]) => (
+                  <div key={portal} className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-3 h-3 rounded-full ${
+                        portal.toLowerCase() === 'airbnb' ? 'bg-rose-500' :
+                        portal.toLowerCase() === 'booking' ? 'bg-blue-500' :
+                        'bg-emerald-500'
+                      }`} />
+                      <span className="font-medium text-gray-700">{portal}</span>
+                    </div>
+                    <span className="font-semibold text-gray-900">€{revenue.toFixed(2)}</span>
+                  </div>
+                ))}
+                {Object.keys(revenueByPortal).length === 0 && (
+                  <p className="text-gray-500 text-sm">Nessun dato sui ricavi disponibile.</p>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex items-center gap-4">
             <div className="p-3 bg-blue-50 text-blue-600 rounded-lg">
               <CalendarDays className="w-6 h-6" />
@@ -743,6 +841,19 @@ export default function App() {
                     className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Prezzo (€)</label>
+                  <input 
+                    type="number" 
+                    name="price"
+                    min="0"
+                    step="0.01"
+                    value={formData.price || ''}
+                    onChange={handleInputChange}
+                    placeholder="es. 150.00"
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
               </div>
               <div className="mt-6 flex justify-end gap-3">
                 <button 
@@ -894,6 +1005,8 @@ export default function App() {
             </table>
           </div>
         </div>
+        </>
+        )}
       </main>
 
       {/* Settings Modal */}
