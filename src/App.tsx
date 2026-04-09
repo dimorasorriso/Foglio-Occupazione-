@@ -212,10 +212,17 @@ export default function App() {
       reader.onload = async () => {
         try {
           const base64Data = (reader.result as string).split(',')[1];
-          const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+          const apiKey = process.env.GEMINI_API_KEY;
+          if (!apiKey || apiKey === 'undefined') {
+            setNotification({ message: "Chiave API di Gemini mancante. Configurala su Netlify.", type: 'error' });
+            setIsAnalyzing(false);
+            return;
+          }
+          
+          const ai = new GoogleGenAI({ apiKey });
           
           const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-3-flash-preview',
             contents: [
               {
                 role: 'user',
@@ -491,10 +498,15 @@ export default function App() {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
         <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-200 max-w-md w-full text-center">
-          <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-6">
-            <Building className="w-8 h-8" />
+          <div className="flex items-center justify-center mx-auto mb-6">
+            <img 
+              src="https://drive.google.com/uc?export=view&id=1_pSyAN_t2vDeot5IfGGfH1m9vVWYf76I" 
+              alt="SariaOccupazione Logo" 
+              className="h-24 object-contain"
+              referrerPolicy="no-referrer"
+            />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Gestione B&B</h1>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">SariaOccupazione</h1>
           <p className="text-gray-500 mb-8">Accedi per gestire le tue prenotazioni in cloud e sincronizzarle su tutti i tuoi dispositivi.</p>
           <button
             onClick={loginWithGoogle}
@@ -538,9 +550,14 @@ export default function App() {
     <div className="min-h-screen bg-gray-50 text-gray-900 font-sans">
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Building className="w-6 h-6 text-blue-600" />
-            <h1 className="text-xl font-semibold tracking-tight">Gestione B&B</h1>
+          <div className="flex items-center gap-3">
+            <img 
+              src="https://drive.google.com/uc?export=view&id=1_pSyAN_t2vDeot5IfGGfH1m9vVWYf76I" 
+              alt="SariaOccupazione Logo" 
+              className="h-10 object-contain"
+              referrerPolicy="no-referrer"
+            />
+            <h1 className="text-xl font-semibold tracking-tight hidden sm:block">SariaOccupazione</h1>
           </div>
           <div className="flex items-center gap-3">
             <div className="flex bg-gray-100 p-1 rounded-lg mr-4">
