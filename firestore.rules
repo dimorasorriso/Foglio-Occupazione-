@@ -1,0 +1,69 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users/{userId}/reservations
+    // Document ID: {reservationId}
+    // Fields:
+    //   - id: string (required) - Unique identifier
+    //   - userId: string (required, immutable) - Owner ID
+    //   - checkIn: string (required) - Check-in date (YYYY-MM-DD)
+    //   - checkOut: string (required) - Check-out date (YYYY-MM-DD)
+    //   - adults: number (required) - Number of adults
+    //   - children: number (required) - Number of children
+    //   - portal: string (required) - Booking portal
+    //   - notes: string (optional) - Additional notes
+    //   - createdAt: string (optional, immutable) - Creation timestamp
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+    
+    function isValidDateString(dateStr) {
+      return dateStr is string && dateStr.matches("^\\d{4}-\\d{2}-\\d{2}$");
+    }
+
+    function isValidReservation(data, userId) {
+      return hasRequiredFields(['id', 'userId', 'checkIn', 'checkOut', 'adults', 'children', 'portal']) &&
+             data.id is string && data.id.size() > 0 && data.id.size() < 100 &&
+             data.userId == userId &&
+             isValidDateString(data.checkIn) &&
+             isValidDateString(data.checkOut) &&
+             data.adults is number && data.adults >= 0 && data.adults <= 50 &&
+             data.children is number && data.children >= 0 && data.children <= 50 &&
+             data.portal is string && data.portal.size() >= 0 && data.portal.size() < 50 &&
+             (!('notes' in data) || (data.notes is string && data.notes.size() <= 2000)) &&
+             (!('phone' in data) || (data.phone is string && data.phone.size() <= 50)) &&
+             (!('createdAt' in data) || data.createdAt is string);
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+    match /users/{userId}/reservations/{reservationId} {
+      allow read: if isOwner(userId);
+      allow delete: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidReservation(request.resource.data, userId);
+      allow update: if isOwner(userId) && 
+                    isValidReservation(request.resource.data, userId) &&
+                    request.resource.data.userId == resource.data.userId &&
+                    (!('createdAt' in resource.data) || request.resource.data.createdAt == resource.data.createdAt);
+    }
+  }
+}

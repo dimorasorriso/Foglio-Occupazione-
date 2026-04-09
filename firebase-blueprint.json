@@ -1,0 +1,27 @@
+{
+  "entities": {
+    "Reservation": {
+      "title": "Reservation",
+      "description": "A booking reservation for the B&B",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier for the reservation" },
+        "userId": { "type": "string", "description": "The ID of the user who owns this reservation" },
+        "checkIn": { "type": "string", "format": "date", "description": "Check-in date in YYYY-MM-DD format" },
+        "checkOut": { "type": "string", "format": "date", "description": "Check-out date in YYYY-MM-DD format" },
+        "adults": { "type": "number", "description": "Number of adults" },
+        "children": { "type": "number", "description": "Number of children under 3" },
+        "portal": { "type": "string", "description": "Booking portal (e.g., Airbnb, Booking, Privato)" },
+        "notes": { "type": "string", "description": "Additional notes" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp" }
+      },
+      "required": ["id", "userId", "checkIn", "checkOut", "adults", "children", "portal"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/reservations/{reservationId}": {
+      "schema": { "$ref": "#/entities/Reservation" },
+      "description": "Reservations belonging to a specific user"
+    }
+  }
+}
